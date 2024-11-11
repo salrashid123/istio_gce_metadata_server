@@ -252,7 +252,7 @@ minikube start --driver=kvm2  --cpus=4 \
   --kubernetes-version=v1.28 --network-plugin=cni --cni=calico --host-only-cidr 192.168.39.1/24
 
 ## note, network policies work on labels
-kubectl label namespace default namespace=frontend
+kubectl label namespace default namespace=frontendbels="app=fe" --overrides='{ "spec": { "serviceAccount": "fe-sa" }  }'  -i --tty -- sh
 ```
 
 Then if you don't install istio, a sample policy maybe like this:
@@ -292,18 +292,44 @@ spec:
   - Ingress
 ```
 
-Note, `Calico` seems to [allow service account restrictions](https://docs.tigera.io/calico/latest/network-policy/policy-rules/service-accounts#limit-ingress-traffic-for-workloads-by-service-account-name), i haven't tested this but it maybe something like
+Note, `Calico` seems to [allow service account restrictions](https://docs.tigera.io/calico/latest/network-policy/policy-rules/service-accounts#limit-ingress-traffic-for-workloads-by-service-account-name).
+
+To enable calico and its CRDs, 
+
+```bash
+minikube start --driver=kvm2  --cpus=4 --kubernetes-version=v1.28 \
+   --network-plugin=cni --cni=calico --host-only-cidr 192.168.39.1/24
+
+kubectl label namespace default namespace=frontend
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.0/manifests/tigera-operator.yaml
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.0/manifests/custom-resources.yaml
+kubectl get pods -n calico-system
+```
+
+Then a configuration like this would apply a service account restriction as well
 
 ```yaml
 apiVersion: projectcalico.org/v3
 kind: NetworkPolicy
 metadata:
+  name: default.default-deny
+  namespace: mds-ns 
+spec:
+  tier: default
+  selector: all()
+  types:
+    - Ingress
+---
+apiVersion: projectcalico.org/v3
+kind: NetworkPolicy
+metadata:
   name: sa-calico
-  namespace: mds-ns
+  namespace: mds-ns  
 spec:
   ingress:
     - action: Allow
       source:
+        namespaceSelector: 'namespace == "frontend"' 
         serviceAccounts:
           names:
             - fe-sa
