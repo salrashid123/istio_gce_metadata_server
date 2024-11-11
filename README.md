@@ -243,6 +243,72 @@ curl -v -H "Metadata-Flavor: Google" \
 
 This demo app will parse the header, extract the `URI` field and return a dummy token that the calling service is authorized for
 
+### Using Kubernetes Network Policy
+
+Note, you can use kubernetes [Network Policy](https://kubernetes.io/docs/concepts/services-networking/network-policies/) to help control traffic to the MDS only from the `fe` pod.  If you are not using istio, following should restrict access from just the `fe` pods
+
+```bash
+minikube start --driver=kvm2  --cpus=4 \
+  --kubernetes-version=v1.28 --network-plugin=cni --cni=calico --host-only-cidr 192.168.39.1/24
+
+## note, network policies work on labels
+kubectl label namespace default namespace=frontendbels="app=fe" --overrides='{ "spec": { "serviceAccount": "fe-sa" }  }'  -i --tty -- sh
+```
+
+Then if you don't install istio, a sample policy maybe like this:
+
+```yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-from-fe
+  namespace: mds-ns
+spec:
+  policyTypes:
+  - Ingress
+  podSelector:
+    matchLabels:
+      app: mds
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          namespace: frontend
+      podSelector:
+        matchLabels:
+          app: fe
+    ports:
+    - protocol: TCP
+      port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: mds-ns  
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+```
+
+Note, `Calico` seems to [allow service account restrictions](https://docs.tigera.io/calico/latest/network-policy/policy-rules/service-accounts#limit-ingress-traffic-for-workloads-by-service-account-name), i haven't tested this but it maybe something like
+
+```yaml
+apiVersion: projectcalico.org/v3
+kind: NetworkPolicy
+metadata:
+  name: sa-calico
+  namespace: mds-ns
+spec:
+  ingress:
+    - action: Allow
+      source:
+        serviceAccounts:
+          names:
+            - fe-sa
+  selector: 'app == "mds"'
+```
 
 ### References
 
