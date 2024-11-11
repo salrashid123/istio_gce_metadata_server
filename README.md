@@ -227,8 +227,6 @@ spec:
 
 As a small local demo, run the `mdsbroker/` app
 
-proxyHeaders.setCurrentClientCertDetails
-
 ```bash
 cd mdsbroker/
 go run http_server.go
@@ -244,3 +242,9 @@ curl -v -H "Metadata-Flavor: Google" \
 ```
 
 This demo app will parse the header, extract the `URI` field and return a dummy token that the calling service is authorized for
+
+
+### References
+
+- [External Authorization Server with Istio](https://github.com/salrashid123/istio_external_authorization_server.git)
+- [Envoy External Authorization server (envoy.ext_authz) with OPA HelloWorld](https://github.com/salrashid123/envoy_external_authz)
