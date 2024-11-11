@@ -252,7 +252,7 @@ minikube start --driver=kvm2  --cpus=4 \
   --kubernetes-version=v1.28 --network-plugin=cni --cni=calico --host-only-cidr 192.168.39.1/24
 
 ## note, network policies work on labels
-kubectl label namespace default namespace=frontendbels="app=fe" --overrides='{ "spec": { "serviceAccount": "fe-sa" }  }'  -i --tty -- sh
+kubectl label namespace default namespace=frontend
 ```
 
 Then if you don't install istio, a sample policy maybe like this:
