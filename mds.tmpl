@@ -1,0 +1,245 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mds-ns
+  labels:
+    istio-injection: enabled
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mds
+  namespace: mds-ns
+  labels:
+    app: mds
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: metadata
+  ports:
+  - port: 8080
+    name: http
+  selector:
+    app: mds
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mds-sa
+  namespace: mds-ns
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mds
+  namespace: mds-ns
+spec:
+  selector:
+    matchLabels:
+      app: mds  
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mds
+        app.kubernetes.io/name: metadata
+    spec:
+      serviceAccountName: mds-sa    
+      containers:
+      - name: service
+        image: docker.io/salrashid123/gcemetadataserver
+        args: [
+          "-serviceAccountFile=/certs/metadata-sa.json", 
+          "-configFile=/config/config.json",
+          "-logtostderr","-alsologtostderr",
+          "-interface=0.0.0.0",
+          "-v=50",
+          "-port=:8080"
+        ]        
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          protocol: TCP 
+        volumeMounts:
+        - name: metadata-sa
+          mountPath: "/certs"
+          readOnly: true
+        - name: mds-config-vol
+          mountPath: "/config"
+          readOnly: true
+      volumes:
+      - name: metadata-sa
+        secret:
+          secretName: gcp-svc-account
+          optional: false
+      - name: mds-config-vol
+        configMap:
+          name: mds-config     
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gcp-svc-account
+  namespace: mds-ns
+type: Opaque
+data:
+  metadata-sa.json: $SA_CRED
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mds-config
+  namespace: mds-ns
+data:
+  config.json: |
+      {
+        "computeMetadata": {
+          "v1":{
+          "instance": {
+              "attributes": {
+                "enable-oslogin": "false",
+                "metadata2": "value2"
+              },
+              "cpuPlatform": "Intel Broadwell",
+              "description": "",
+              "disks": [
+                {
+                  "deviceName": "instance-1",
+                  "index": 0,
+                  "interface": "SCSI",
+                  "mode": "READ_WRITE",
+                  "type": "PERSISTENT-BALANCED"
+                },
+                {
+                  "deviceName": "disk-1",
+                  "index": 1,
+                  "interface": "SCSI",
+                  "mode": "READ_WRITE",
+                  "type": "PERSISTENT-BALANCED"
+                }
+              ],
+              "guestAttributes": {},
+              "hostname": "instance-1.c.srashid-test2.internal",
+              "id": 5775171277418378000,
+              "image": "projects/debian-cloud/global/images/debian-11-bullseye-v20231004",
+              "licenses": [
+                {
+                  "id": "3853522013536123851"
+                }
+              ],
+              "machineType": "projects/708288290784/machineTypes/e2-standard-4",
+              "maintenanceEvent": "NONE",
+              "name": "instance-1",
+              "networkInterfaces": [
+                {
+                  "accessConfigs": [
+                    {
+                      "externalIp": "34.69.160.1",
+                      "type": "ONE_TO_ONE_NAT"
+                    }
+                  ],
+                  "dnsServers": [
+                    "169.254.169.254"
+                  ],
+                  "forwardedIps": [],
+                  "gateway": "10.128.0.1",
+                  "ip": "10.128.0.19",
+                  "ipAliases": [],
+                  "mac": "42:01:0a:80:00:13",
+                  "mtu": 1460,
+                  "network": "projects/708288290784/networks/default",
+                  "subnetmask": "255.255.240.0",
+                  "targetInstanceIps": []
+                }
+              ],
+              "partnerAttributes": {},
+              "preempted": "FALSE",
+              "remainingCpuTime": -1,
+              "scheduling": {
+                "automaticRestart": "TRUE",
+                "onHostMaintenance": "MIGRATE",
+                "preemptible": "FALSE"
+              },
+              "serviceAccounts": {
+                "metadata-sa@$PROJECT_ID.iam.gserviceaccount.com": {
+                  "aliases": [
+                    "default"
+                  ],
+                  "email": "metadata-sa@$PROJECT_ID.iam.gserviceaccount.com",
+                  "scopes": [
+                    "https://www.googleapis.com/auth/cloud-platform",
+                    "https://www.googleapis.com/auth/userinfo.email"
+                  ]
+                },
+                "default": {
+                  "aliases": [
+                    "default"
+                  ],
+                  "email": "metadata-sa@$PROJECT_ID.iam.gserviceaccount.com",
+                  "scopes": [
+                    "https://www.googleapis.com/auth/cloud-platform",
+                    "https://www.googleapis.com/auth/userinfo.email"
+                  ]
+                }
+              },
+              "tags": [
+                "tag1",
+                "tag2"
+              ],
+              "virtualClock": {
+                "driftToken": "0"
+              },
+              "zone": "projects/708288290784/zones/us-central1-a"
+            },
+          "oslogin": {
+            "authenticate": {
+              "sessions": {}
+            }
+          },
+          "project": {
+            "attributes": {
+              "ssh-keys": "srashid:ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCdVeH9zvBfNc7x9mVxo6SMvtz6yRlXtvoiUyEBnSaQg4NIGFeyoRKkAdW2Ubp7ZSHn1kudHR1d9uiFqGtBJ/u6uS/07/mOFNKf4JRzb2dj7IpCZOntV4yQUu+TEcnS8TV9DW5aTQ3YMJgZEV+5FQr/1dTY3t+92gzIr5nGJqArRtJgiLACq34wgcU71cMiNpEhUHk07doIxoOC1AJaHyPVlAdNt1FKQoo7cfJPoKjYBPvUlnAmf1s6in90g7HqBMS5xo1cPhHY42JZpH0kySLpZKEwDtjXjoIT+felVOCq8HTOph1N9VmoW3IrtyB+sBod2kJGlOSmV0dypzW9Vrozd2J0c+D78tNooeHFgNKmu8/YP57TKgLKfZsg5aDCtrv0= srashid@srashid12"
+            },
+            "numericProjectId": 708288290784,
+            "projectId": "$PROJECT_ID"
+          }
+        }
+      }
+      }
+---
+apiVersion: networking.istio.io/v1
+kind: ServiceEntry
+metadata:
+  name: oauth2-ext-se
+  namespace: mds-ns
+spec:
+  hosts:
+  - oauth2.googleapis.com
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  resolution: DNS
+  location: MESH_EXTERNAL
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: oauth2-ext-vs
+  namespace: mds-ns
+spec:
+  hosts:
+  - oauth2.googleapis.com
+  tls:
+  - match:
+    - port: 443
+      sniHosts:
+      - oauth2.googleapis.com
+    route:
+    - destination:
+        host: oauth2.googleapis.com
+        port:
+          number: 443
+      weight: 100
+---

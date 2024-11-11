@@ -1,0 +1,51 @@
+apiVersion: "security.istio.io/v1"
+kind: "PeerAuthentication"
+metadata:
+  name: default-peerauth
+  namespace: "istio-system"
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+ name: deny-default-ns
+ namespace: mds-ns
+spec:
+ selector:
+   matchLabels:
+     app: mds
+ action: DENY
+ rules:
+ - from:
+   - source:
+       notNamespaces: ["default"]
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: mds-peerauth
+  namespace: mds-ns
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+ name: mds-az
+ namespace: mds-ns
+spec:
+ action: ALLOW  
+ selector:
+   matchLabels:
+     app: mds
+ rules:
+ - to:
+   - operation:
+       methods: ["GET"]  
+   from:
+   - source:
+       principals: ["cluster.local/ns/default/sa/fe-sa"] 
+

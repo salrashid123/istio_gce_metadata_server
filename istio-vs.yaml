@@ -1,0 +1,80 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: fe-virtualservice
+  namespace: default
+spec:
+  hosts:
+  - "fe.example.com"
+  gateways:
+  - my-gateway
+  http:      
+  - route:
+    - destination:
+        host: fe      
+---
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: fe-destination
+  namespace: default
+spec:
+  host: fe
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL  
+    loadBalancer:
+      simple: ROUND_ROBIN      
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: fe2-virtualservice
+  namespace: default
+spec:
+  hosts:
+  - "fe2.example.com"
+  gateways:
+  - my-gateway
+  http:      
+  - route:
+    - destination:
+        host: fe2      
+---
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: fe2-destination
+  namespace: default
+spec:
+  host: fe2
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL  
+    loadBalancer:
+      simple: ROUND_ROBIN      
+---
+
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: mds-virtualservice
+  namespace: mds-ns
+spec:
+  http:      
+  - route:
+    - destination:
+        host: mds
+---
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: mds-destination
+  namespace: mds-ns
+spec:
+  host: mds
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL  
+    loadBalancer:
+      simple: ROUND_ROBIN   
